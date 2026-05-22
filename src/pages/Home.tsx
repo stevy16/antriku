@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, GalleryHorizontal as Gallery, CheckCircle2, Clock, Bell, LayoutDashboard, BarChart3 } from 'lucide-react';
+import { ArrowRight, GalleryHorizontal as Gallery, CheckCircle2, Clock, Bell, LayoutDashboard, BarChart3, HelpCircle, Check, Building, ArrowUpRight, Zap, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const features = [
@@ -7,6 +8,28 @@ const features = [
 ];
 
 export default function Home() {
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  const steps = [
+    { num: '01', title: 'Daftar Bisnis', desc: 'Daftarkan bisnis atau klinik Anda melalui dashboard AntriKu dalam 1 menit.', icon: <Building className="w-5 h-5 text-brand-blue" /> },
+    { num: '02', title: 'Pasang Poster QR', desc: 'Cetak poster QR Code otomatis dari sistem dan tempel di area layanan fisik.', icon: <ArrowUpRight className="w-5 h-5 text-brand-blue" /> },
+    { num: '03', title: 'Pelanggan Scan QR', desc: 'Pelanggan memindai QR Code untuk mendaftar antrean mandiri lewat handphone.', icon: <Zap className="w-5 h-5 text-brand-blue" /> },
+    { num: '04', title: 'Panggil & Monitor', desc: 'Panggil nomor antrean berikutnya dari dasbor admin dan pantau secara live.', icon: <Play className="w-5 h-5 text-brand-blue" /> }
+  ];
+
+  const pricingPlans = [
+    { name: 'Trial Sandbox', price: 'Gratis', period: '14 Hari penuh', desc: 'Sempurna untuk uji coba kelayakan sistem antrean digital.', features: ['3 Loket Layanan', 'QR Code Otomatis', 'Simulasi Notifikasi Browser', 'TTS Voice Calls', 'Analitik Hari Ini'] },
+    { name: 'Starter Local', price: 'Rp 149.000', period: 'per bulan', desc: 'Cocok untuk pangkas rambut, salon, kafe & toko kecil.', features: ['5 Loket Layanan', 'QR Code Custom', 'WhatsApp API Sandbox', 'Analitik Mingguan', 'Dukungan Chat Online'] },
+    { name: 'Professional Bisnis', price: 'Rp 299.000', period: 'per bulan', desc: 'Ideal untuk Klinik medis, Bank daerah, and kantor pelayanan sipil.', features: ['Loket Tanpa Batas', 'Kustom Banner Poster', 'Integrasi WhatsApp API Resmi', 'Ekspor Laporan Analitik harian', 'Priority Support 24/7'] }
+  ];
+
+  const faqs = [
+    { q: 'Apakah pelanggan wajib mengisntal aplikasi AntriKu?', a: 'Tidak. Pembeli atau pasien cukup memindai QR code menggunakan kamera bawaan ponsel untuk langsung mendapatkan nomor antrean digital di browser.' },
+    { q: 'Bagaimana cara kerja notifikasi WhatsApp?', a: 'Sistem cloud kami otomatis membroadcast pesan notifikasi ketika antrean pelanggan bersiap dipanggil, meminimalkan nomor yang terlewat.' },
+    { q: 'Berapa banyak loket layanan yang bisa saya daftarkan?', a: 'Sistem kami modular dan mendukung pembuatan loket layanan (Counter) tanpa batasan jumlah loket pada paket profesional.' },
+    { q: 'Apakah ada masa percobaan gratis?', a: 'Ya! Anda mendapatkan akses penuh uji coba gratis (Free Trial) selama 14 hari tanpa diperlukan informasi kartu kredit.' }
+  ];
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -205,6 +228,143 @@ export default function Home() {
               </p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Cara Kerja Section */}
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-zinc-50 border-t border-zinc-150 relative">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <span className="text-[10px] uppercase tracking-widest font-extrabold text-brand-blue bg-brand-blue/10 border border-brand-blue/20 rounded-full px-4 py-1.5 inline-block mb-3">Onboarding Alur</span>
+            <h2 className="text-3xl md:text-5xl font-extrabold text-brand-dark">Cara Kerja Aplikasi</h2>
+            <p className="text-zinc-500 max-w-2xl mx-auto mt-2 text-xs">
+              Mulai atur sistem antrean digital Anda dalam 4 langkah sederhana.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 relative">
+            {steps.map((step, idx) => (
+              <div key={idx} className="bg-white p-7 rounded-3xl border border-zinc-150 shadow-sm relative flex flex-col justify-between group hover:border-brand-blue/40 transition-all">
+                <span className="absolute top-6 right-6 font-mono font-black text-3xl text-zinc-100 group-hover:text-brand-blue/10 transition-colors">{step.num}</span>
+                <div>
+                  <div className="w-12 h-12 bg-brand-blue/5 rounded-2xl flex items-center justify-center mb-6">
+                    {step.icon}
+                  </div>
+                  <h3 className="text-base font-black text-brand-dark mb-2">{step.title}</h3>
+                  <p className="text-xs text-zinc-500 leading-relaxed">{step.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white border-t border-zinc-150">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <span className="text-[10px] uppercase tracking-widest font-extrabold text-brand-blue bg-brand-blue/10 border border-brand-blue/20 rounded-full px-4 py-1.5 inline-block mb-3">Paket Layanan</span>
+            <h2 className="text-3xl md:text-5xl font-extrabold text-brand-dark">Harga Transparan untuk Layanan Hebat</h2>
+            <p className="text-zinc-500 max-w-2xl mx-auto mt-2 text-xs">
+              Maksimal nilai kenyamanan dengan investasi ekonomis yang sangat terjangkau.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
+            {pricingPlans.map((plan, idx) => (
+              <div key={idx} className={`p-8 rounded-[2.2rem] border flex flex-col justify-between relative bg-white shadow-md ${
+                idx === 2 ? 'border-brand-blue ring-1 ring-brand-blue/50' : 'border-zinc-200'
+              }`}>
+                {idx === 2 && (
+                  <span className="absolute top-0 right-8 -translate-y-1/2 px-3 py-1 bg-brand-blue text-white text-[8px] font-black uppercase tracking-widest rounded-full shadow-sm">Terpopuler</span>
+                )}
+                <div>
+                  <h3 className="text-lg font-black text-brand-dark">{plan.name}</h3>
+                  <p className="text-xs text-zinc-450 mt-1 leading-relaxed">{plan.desc}</p>
+                  
+                  <div className="my-6">
+                    <span className="text-4xl font-black text-brand-dark tracking-tight">{plan.price}</span>
+                    <span className="text-zinc-400 text-xs font-bold block mt-1">{plan.period}</span>
+                  </div>
+
+                  <ul className="space-y-3.5 border-t border-zinc-100 pt-6">
+                    {plan.features.map((feat, fIdx) => (
+                      <li key={fIdx} className="flex gap-2.5 items-center text-xs font-semibold text-zinc-650">
+                        <Check className="w-4 h-4 text-brand-blue shrink-0" />
+                        <span>{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="pt-8">
+                  <Link
+                    to="/auth?tab=register"
+                    className={`w-full py-3.5 text-center block font-bold text-xs uppercase tracking-widest rounded-xl transition-all ${
+                      idx === 2 
+                        ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20 hover:bg-brand-blue/95' 
+                        : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+                    }`}
+                  >
+                    Mulai Uji Coba Gratis
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Accordion Section */}
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-zinc-50 border-t border-zinc-150">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-16">
+            <span className="text-[10px] uppercase tracking-widest font-extrabold text-brand-blue bg-brand-blue/10 border border-brand-blue/20 rounded-full px-4 py-1.5 inline-block mb-3">Pusat Bantuan FAQ</span>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-brand-dark">Tanya Jawab Seputar AntriKu</h2>
+            <p className="text-zinc-550 max-w-2xl mx-auto mt-2 text-xs">
+              Berikut adalah jawaban atas pertanyaan-pertanyaan yang paling sering diajukan mengenai sistem integrasi antrean digital kami.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {faqs.map((faq, idx) => (
+              <div key={idx} className="bg-white rounded-2xl border border-zinc-150 p-5 shadow-sm transition-all">
+                <button
+                  onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
+                  className="w-full flex justify-between items-center text-left font-black text-xs uppercase tracking-wider text-brand-dark cursor-pointer py-1.5"
+                >
+                  <span>{faq.q}</span>
+                  <span className="text-brand-blue text-sm">{openFaq === idx ? '−' : '+'}</span>
+                </button>
+                {openFaq === idx && (
+                  <p className="text-xs text-zinc-500 mt-4 leading-relaxed pt-3 border-t border-zinc-100">
+                    {faq.a}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Bottom Call-To-Action Banner */}
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white border-t border-zinc-150">
+        <div className="max-w-5xl mx-auto bg-brand-blue rounded-[3rem] p-12 md:p-16 text-center text-white relative overflow-hidden shadow-2xl shadow-brand-blue/20">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 blur-3xl rounded-full"></div>
+          
+          <span className="text-[9px] uppercase tracking-[0.2em] font-black text-blue-200 bg-white/10 px-4 py-1.5 rounded-full inline-block mb-4">Uji Coba 14 Hari Tanpa Risiko</span>
+          <h2 className="text-3xl md:text-5xl font-black mb-6 tracking-tight">Kalahkan Kerumunan Fisik & Atur Antrean Cerdas Bersama AntriKu</h2>
+          <p className="text-blue-100 max-w-xl mx-auto mb-10 text-xs leading-relaxed">
+            Mulailah mendigitalisasi ruang tunggu toko atau klinik kesehatan Anda hari ini dan rasakan peningkatan performa pelayanan hingga 60%.
+          </p>
+
+          <Link
+            to="/auth?tab=register"
+            className="px-10 py-5 bg-white hover:bg-zinc-50 text-brand-blue font-black rounded-2xl text-xs uppercase tracking-widest hover:scale-105 transition-transform inline-flex items-center gap-2 shadow-xl shrink-0"
+          >
+            <span>Coba AntriKu Gratis Sekarang</span>
+            <ArrowRight className="w-4 h-4 text-brand-blue" />
+          </Link>
         </div>
       </section>
     </motion.div>

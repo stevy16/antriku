@@ -1,17 +1,23 @@
 import { motion } from 'motion/react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ArrowRight } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
+import { useQueue } from '../context/QueueContext';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const { authState } = useQueue();
   const location = useLocation();
 
   const navLinks = [
     { name: 'Beranda', path: '/' },
-    { name: 'Galeri', path: '/gallery' },
-    { name: 'Tentang', path: '/about' },
+    { name: 'Ambil Antrean', path: '/queue' },
+    { name: 'Monitor TV', path: '/display' },
+    { name: 'Langkah Setup', path: '/get-started' },
   ];
+
+  const adminTarget = authState.isAuthenticated ? '/admin' : '/auth';
+  const adminLabel = authState.isAuthenticated ? 'Dasbor Admin' : 'Masuk Admin';
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
@@ -32,7 +38,7 @@ export default function Navbar() {
               <Link
                 key={link.name}
                 to={link.path}
-                className={`text-[11px] font-bold uppercase tracking-[0.2em] transition-all hover:text-brand-blue pb-1 ${
+                className={`text-[11px] font-bold uppercase tracking-[0.15em] transition-all hover:text-brand-blue pb-1 ${
                   location.pathname === link.path ? 'text-brand-dark border-b-2 border-brand-blue' : 'text-zinc-500'
                 }`}
               >
@@ -40,10 +46,10 @@ export default function Navbar() {
               </Link>
             ))}
             <Link
-              to="/get-started"
-              className="px-6 py-2 border border-brand-blue text-brand-blue text-[10px] font-bold uppercase tracking-[0.2em] rounded-full hover:bg-brand-blue hover:text-white transition-all shadow-sm"
+              to={adminTarget}
+              className="px-6 py-2 border border-brand-blue bg-brand-blue/5 text-brand-blue text-[10px] font-bold uppercase tracking-[0.15em] rounded-full hover:bg-brand-blue hover:text-white transition-all shadow-sm"
             >
-              Masuk Klien
+              {adminLabel}
             </Link>
           </div>
 
@@ -80,11 +86,11 @@ export default function Navbar() {
               </Link>
             ))}
             <Link
-              to="/get-started"
+              to={adminTarget}
               onClick={() => setIsOpen(false)}
               className="w-full py-4 bg-brand-blue text-white text-center font-bold rounded-xl shadow-lg shadow-brand-blue/20"
             >
-              Mulai Sekarang
+              {adminLabel}
             </Link>
           </div>
         </motion.div>
