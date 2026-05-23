@@ -9,13 +9,14 @@ interface QueueContextType {
   registerBusiness: (name: string, category: string, phone: string, address: string, totalCounters: number) => boolean;
   loginAdmin: (email: string, password: string) => boolean;
   logoutAdmin: () => void;
-  takeTicket: (name: string, phone: string, categoryPrefix: string) => QueueItem;
-  callNext: (counterNumber: number) => void;
+  takeTicket: (name: string, phone: string, categoryPrefix: string, branch: string) => QueueItem;
+  callNext: (counterNumber: number, branchFilter?: string) => void;
   skipTicket: (ticketId: string) => void;
   servedTicket: (ticketId: string) => void;
   resetQueue: () => void;
   togglePauseQueue: () => void;
   getQRUrl: () => string;
+  addBusinessBranch: (branchName: string) => void;
 }
 
 const QueueContext = createContext<QueueContextType | undefined>(undefined);
@@ -65,11 +66,11 @@ export function QueueProvider({ children }: { children: React.ReactNode }) {
     }
     // Default queue placeholders for Klinik & Kesehatan bid
     return [
-      { id: '1', ticketNumber: 'A-01', customerName: 'Ahmad Faisal', customerPhone: '0812341234', categoryPrefix: 'A', status: 'served', createdAt: '10:00', counterNumber: 1 },
-      { id: '2', ticketNumber: 'A-02', customerName: 'Banu Tri', customerPhone: '0857233211', categoryPrefix: 'A', status: 'served', createdAt: '10:12', counterNumber: 2 },
-      { id: '3', ticketNumber: 'B-01', customerName: 'Citra Dewi', customerPhone: '0899222444', categoryPrefix: 'B', status: 'calling', createdAt: '10:20', counterNumber: 1 },
-      { id: '4', ticketNumber: 'A-03', customerName: 'Deni Setiawan', customerPhone: '0813987654', categoryPrefix: 'A', status: 'waiting', createdAt: '10:35' },
-      { id: '5', ticketNumber: 'A-04', customerName: 'Eva Melati', customerPhone: '0822111199', categoryPrefix: 'A', status: 'waiting', createdAt: '10:48' }
+      { id: '1', ticketNumber: 'A-01', customerName: 'Ahmad Faisal', customerPhone: '0812341234', categoryPrefix: 'A', status: 'served', createdAt: '10:00', counterNumber: 1, branch: 'Cabang Senayan Utama' },
+      { id: '2', ticketNumber: 'A-02', customerName: 'Banu Tri', customerPhone: '0857233211', categoryPrefix: 'A', status: 'served', createdAt: '10:12', counterNumber: 2, branch: 'Cabang Senayan Utama' },
+      { id: '3', ticketNumber: 'B-01', customerName: 'Citra Dewi', customerPhone: '0899222444', categoryPrefix: 'B', status: 'calling', createdAt: '10:20', counterNumber: 1, branch: 'Cabang Bekasi Cyber Park' },
+      { id: '4', ticketNumber: 'A-03', customerName: 'Deni Setiawan', customerPhone: '0813987654', categoryPrefix: 'A', status: 'waiting', createdAt: '10:35', branch: 'Cabang Senayan Utama' },
+      { id: '5', ticketNumber: 'A-04', customerName: 'Eva Melati', customerPhone: '0822111199', categoryPrefix: 'A', status: 'waiting', createdAt: '10:48', branch: 'Cabang BSD Tangerang' }
     ];
   });
 
@@ -228,7 +229,8 @@ export function QueueProvider({ children }: { children: React.ReactNode }) {
       phone,
       totalCounters,
       averageServiceTime: 12,
-      isPaused: false
+      isPaused: false,
+      branches: ['Cabang Senayan Utama', 'Cabang Bekasi Cyber Park', 'Cabang BSD Tangerang', 'Cabang Dago Bandung']
     };
 
     const simulatedJWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.simulated_token_' + Math.random().toString(36).substring(2, 10);
@@ -253,7 +255,8 @@ export function QueueProvider({ children }: { children: React.ReactNode }) {
       phone: authState.business?.phone || '0812345678',
       totalCounters: authState.business?.totalCounters || 3,
       averageServiceTime: 12,
-      isPaused: false
+      isPaused: false,
+      branches: authState.business?.branches || ['Cabang Senayan Utama', 'Cabang Bekasi Cyber Park', 'Cabang BSD Tangerang', 'Cabang Dago Bandung']
     };
 
     const simulatedJWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.login_token_' + Math.random().toString(36).substring(2, 10);
@@ -277,9 +280,11 @@ export function QueueProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const takeTicket = (name: string, phone: string, categoryPrefix: string) => {
+  const takeTicket = (name: string, phone: string, categoryPrefix: string, branch: string) => {
     const prefix = categoryPrefix.toUpperCase();
-    const prefixTickets = queue.filter(q => q.categoryPrefix === prefix);
+    const selectedBranchName = branch || 'Cabang Senayan Utama';
+    // Calculate sequential ticket number per branch and category prefix
+    const prefixTickets = queue.filter(q => q.categoryPrefix === prefix && q.branch === selectedBranchName);
     
     // Calculate next sequential number
     const maxNum = prefixTickets.length > 0 
@@ -299,7 +304,8 @@ export function QueueProvider({ children }: { children: React.ReactNode }) {
       customerPhone: phone,
       categoryPrefix: prefix,
       status: 'waiting',
-      createdAt: timeStr
+      createdAt: timeStr,
+      branch: selectedBranchName
     };
 
     const updatedQueue = [...queue, newTicket];
@@ -308,15 +314,18 @@ export function QueueProvider({ children }: { children: React.ReactNode }) {
     // Trigger Browser Notification and simulated WhatsApp
     notifyBrowser(
       `Nomor Antrean Anda: ${ticketStr}`,
-      `Halo ${name}, Anda terdaftar di antrean ${authState.business?.name || 'Klinik'.trim()}.`
+      `Halo ${name}, Anda terdaftar di antrean ${authState.business?.name || 'Klinik'.trim()} - ${selectedBranchName}.`
     );
 
     return newTicket;
   };
 
-  const callNext = (counterNumber: number) => {
-    // Find next ticket that is waiting
-    const nextTicket = queue.find(q => q.status === 'waiting');
+  const callNext = (counterNumber: number, branchFilter?: string) => {
+    // Find next ticket that is waiting, optionally filtered by branch
+    const nextTicket = queue.find(q => 
+      q.status === 'waiting' && 
+      (!branchFilter || branchFilter === 'Semua Lokasi' || q.branch === branchFilter)
+    );
     
     if (!nextTicket) {
       notifyBrowser('Semua antrean selesai!', 'Tidak ada pengunjung dalam daftar tunggu saat ini.');
@@ -369,6 +378,22 @@ export function QueueProvider({ children }: { children: React.ReactNode }) {
     return `${origin}/queue`;
   };
 
+  const addBusinessBranch = (branchName: string) => {
+    if (!branchName.trim()) return;
+    setAuthState(prev => {
+      if (!prev.business) return prev;
+      const currentBranches = prev.business.branches || ['Cabang Senayan Utama', 'Cabang Bekasi Cyber Park', 'Cabang BSD Tangerang', 'Cabang Dago Bandung'];
+      if (currentBranches.map(b => b.toLowerCase()).includes(branchName.trim().toLowerCase())) return prev;
+      return {
+        ...prev,
+        business: {
+          ...prev.business,
+          branches: [...currentBranches, branchName.trim()]
+        }
+      };
+    });
+  };
+
   return (
     <QueueContext.Provider value={{
       authState,
@@ -384,7 +409,8 @@ export function QueueProvider({ children }: { children: React.ReactNode }) {
       servedTicket,
       resetQueue,
       togglePauseQueue,
-      getQRUrl
+      getQRUrl,
+      addBusinessBranch
     }}>
       {children}
     </QueueContext.Provider>

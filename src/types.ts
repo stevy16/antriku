@@ -9,6 +9,7 @@ export interface QueueItem {
   calledAt?: string;
   finishedAt?: string;
   counterNumber?: number;
+  branch?: string; // Selected branch location
 }
 
 export interface BusinessInfo {
@@ -21,6 +22,7 @@ export interface BusinessInfo {
   averageServiceTime: number; // in minutes
   isPaused: boolean;
   qrCodeUrl?: string;
+  branches?: string[]; // Registered locations or branches
 }
 
 export interface AuthState {

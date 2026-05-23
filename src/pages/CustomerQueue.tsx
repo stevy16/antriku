@@ -20,10 +20,27 @@ import {
 export default function CustomerQueue() {
   const { authState, queue, takeTicket, isPaused } = useQueue();
   
+  const business = authState.business || {
+    name: 'Klinik Sehat Bersama',
+    category: 'Klinik & Kesehatan',
+    address: 'Jl. Sudirman No 42, Jakarta',
+    phone: '0812345678',
+    totalCounters: 3,
+    averageServiceTime: 12,
+    branches: ['Cabang Senayan Utama', 'Cabang Bekasi Cyber Park', 'Cabang BSD Tangerang', 'Cabang Dago Bandung']
+  };
+
   // Local identity state
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [categoryPrefix, setCategoryPrefix] = useState('A');
+  const [selectedBranch, setSelectedBranch] = useState(() => {
+    return business.branches?.[0] || 'Cabang Senayan Utama';
+  });
+  const [monitorBranch, setMonitorBranch] = useState(() => {
+    return business.branches?.[0] || 'Cabang Senayan Utama';
+  });
+
   const [activeTicketId, setActiveTicketId] = useState<string | null>(() => {
     return localStorage.getItem('my_active_ticket_id') || null;
   });
@@ -37,15 +54,6 @@ export default function CustomerQueue() {
     return null;
   });
 
-  const business = authState.business || {
-    name: 'Klinik Sehat Bersama',
-    category: 'Klinik & Kesehatan',
-    address: 'Jl. Sudirman No 42, Jakarta',
-    phone: '0812345678',
-    totalCounters: 3,
-    averageServiceTime: 12
-  };
-
   const handleTakeQueue = (e: React.FormEvent) => {
     e.preventDefault();
     if (isPaused) {
@@ -58,7 +66,7 @@ export default function CustomerQueue() {
     }
 
     try {
-      const ticket = takeTicket(customerName, customerPhone, categoryPrefix);
+      const ticket = takeTicket(customerName, customerPhone, categoryPrefix, selectedBranch);
       setActiveTicketId(ticket.id);
       setTicketSuccess(ticket);
       
@@ -110,7 +118,7 @@ export default function CustomerQueue() {
 
   // Find currently calling for each category prefix
   const getCurrentlyCalling = (prefix: string) => {
-    const item = queue.find(q => q.categoryPrefix === prefix && q.status === 'calling');
+    const item = queue.find(q => q.categoryPrefix === prefix && q.status === 'calling' && q.branch === monitorBranch);
     return item ? item.ticketNumber : 'Belum Mulai';
   };
 
@@ -167,6 +175,28 @@ export default function CustomerQueue() {
 
               <form onSubmit={handleTakeQueue} className="space-y-4">
                 
+                {/* Branch selection */}
+                <div>
+                  <label className="block text-[10px] font-extrabold text-zinc-500 uppercase tracking-widest mb-1.5">Pilih Lokasi Kantor / Cabang</label>
+                  <div className="relative font-sans">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-blue w-5 h-5" />
+                    <select
+                      value={selectedBranch}
+                      onChange={(e) => setSelectedBranch(e.target.value)}
+                      className="w-full pl-12 pr-10 py-3 bg-blue-50/70 border border-blue-100 rounded-2xl text-xs font-bold text-brand-blue focus:outline-none focus:border-brand-blue focus:bg-white transition-all shadow-sm cursor-pointer appearance-none"
+                    >
+                      {business.branches?.map(b => (
+                        <option key={b} value={b} className="text-zinc-700 font-semibold">{b}</option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-brand-blue">
+                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Full name input */}
                 <div>
                   <label className="block text-[10px] font-extrabold text-zinc-500 uppercase tracking-widest mb-1.5">Nama Lengkap Anda</label>
@@ -287,6 +317,10 @@ export default function CustomerQueue() {
                     <span>Layanan Kode:</span>
                     <span className="text-brand-blue uppercase">{myLiveTicket.categoryPrefix} Category</span>
                   </div>
+                  <div className="flex justify-between text-xs font-bold font-display text-zinc-500 border-t border-zinc-100 pt-1.5 mt-1.5">
+                    <span>Lokasi Layanan:</span>
+                    <span className="text-zinc-700 font-extrabold truncate max-w-[150px]">{myLiveTicket.branch || 'Cabang Senayan Utama'}</span>
+                  </div>
                 </div>
 
                 {/* Estimated waiting stats metrics progress */}
@@ -335,9 +369,29 @@ export default function CustomerQueue() {
 
         {/* Live Counters Board Monitor representing on-site screen */}
         <div className="mt-10 bg-white rounded-2xl p-6 border border-zinc-150/80 shadow-sm">
-          <div className="flex justify-between items-center mb-4 border-b border-zinc-100 pb-3">
-            <h4 className="font-extrabold text-xs text-brand-dark uppercase tracking-widest">Informasi Monitor Saat Ini</h4>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+          <div className="flex flex-col gap-3.5 mb-4 border-b border-zinc-100 pb-4">
+            <div className="flex justify-between items-center">
+              <h4 className="font-extrabold text-xs text-brand-dark uppercase tracking-widest">Informasi Monitor Cabang</h4>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+            </div>
+            
+            {/* Custom Horizontal Branch selection pills */}
+            <div className="flex gap-2 overflow-x-auto pb-1 mt-1 scrollbar-hide">
+              {business.branches?.map(b => (
+                <button
+                  key={b}
+                  type="button"
+                  onClick={() => setMonitorBranch(b)}
+                  className={`text-[10px] px-3 py-1.5 rounded-xl border font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    monitorBranch === b
+                      ? 'bg-brand-blue border-brand-blue text-white shadow-sm shadow-brand-blue/10 scale-[1.02]'
+                      : 'bg-zinc-50 border-zinc-200 text-zinc-500 hover:bg-zinc-100'
+                  }`}
+                >
+                  📍 {b.replace('Cabang ', '')}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

@@ -35,7 +35,8 @@ export default function AdminDashboard() {
     servedTicket, 
     resetQueue, 
     togglePauseQueue, 
-    getQRUrl 
+    getQRUrl,
+    addBusinessBranch
   } = useQueue();
 
   const navigate = useNavigate();
@@ -45,6 +46,9 @@ export default function AdminDashboard() {
   const [selectedCounter, setSelectedCounter] = useState<number>(1);
   const [activeCategory, setActiveCategory] = useState<string>('A');
   const [qrSize, setQrSize] = useState<number>(200);
+  const [selectedBranchAdmin, setSelectedBranchAdmin] = useState<string>('Semua Lokasi');
+  const [showAddBranch, setShowAddBranch] = useState(false);
+  const [newBranchInput, setNewBranchInput] = useState('');
 
   // States for printing
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -63,17 +67,18 @@ export default function AdminDashboard() {
     address: 'Jl. Sudirman No 42, Jakarta',
     phone: '0812345678',
     totalCounters: 3,
-    averageServiceTime: 12
+    averageServiceTime: 12,
+    branches: ['Cabang Senayan Utama', 'Cabang Bekasi Cyber Park', 'Cabang BSD Tangerang', 'Cabang Dago Bandung']
   };
 
-  // Stats Calculations
-  const waitingList = queue.filter(q => q.status === 'waiting');
-  const callingList = queue.filter(q => q.status === 'calling');
-  const servedList = queue.filter(q => q.status === 'served');
-  const skippedList = queue.filter(q => q.status === 'skipped');
+  // Stats Calculations (optionally filtered by selected branch)
+  const waitingList = queue.filter(q => q.status === 'waiting' && (selectedBranchAdmin === 'Semua Lokasi' || q.branch === selectedBranchAdmin));
+  const callingList = queue.filter(q => q.status === 'calling' && (selectedBranchAdmin === 'Semua Lokasi' || q.branch === selectedBranchAdmin));
+  const servedList = queue.filter(q => q.status === 'served' && (selectedBranchAdmin === 'Semua Lokasi' || q.branch === selectedBranchAdmin));
+  const skippedList = queue.filter(q => q.status === 'skipped' && (selectedBranchAdmin === 'Semua Lokasi' || q.branch === selectedBranchAdmin));
 
   const currentOnCounter = (num: number) => {
-    const item = queue.find(q => q.status === 'calling' && q.counterNumber === num);
+    const item = queue.find(q => q.status === 'calling' && q.counterNumber === num && (selectedBranchAdmin === 'Semua Lokasi' || q.branch === selectedBranchAdmin));
     return item ? item.ticketNumber : '-';
   };
 
@@ -300,6 +305,86 @@ export default function AdminDashboard() {
         {activeTab === 'operasional' && (
           <div className="space-y-8">
             
+            {/* Global Branch/Location Selector Bar for Staf Administrator */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50/30 border border-blue-150 p-4.5 rounded-[1.5rem] flex flex-col sm:flex-row justify-between items-center gap-4.5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-brand-blue rounded-xl flex items-center justify-center text-white">
+                  <Sliders className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-brand-dark uppercase tracking-wider">Fokus Operasional Kantor / Cabang</h4>
+                  <p className="text-[10px] text-zinc-500">Pilih cabang kantor tempat loket Anda berada untuk mengelola antrean di lokasi tersebut.</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto font-sans justify-end md:shrink-0">
+                {showAddBranch ? (
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (newBranchInput.trim()) {
+                        addBusinessBranch(newBranchInput.trim());
+                        setSelectedBranchAdmin(newBranchInput.trim()); // Focus on it
+                        setNewBranchInput('');
+                        setShowAddBranch(false);
+                      }
+                    }}
+                    className="flex items-center gap-2 bg-white border border-blue-200 p-1.5 rounded-xl shadow-sm"
+                  >
+                    <input
+                      type="text"
+                      required
+                      placeholder="Nama Cabang baru..."
+                      value={newBranchInput}
+                      onChange={(e) => setNewBranchInput(e.target.value)}
+                      className="bg-transparent text-xs text-brand-dark px-3 py-1.5 focus:outline-none placeholder-zinc-400 font-bold max-w-[150px]"
+                    />
+                    <button
+                      type="submit"
+                      className="bg-brand-blue text-white text-[10px] uppercase font-black px-3.5 py-1.5 rounded-lg hover:bg-brand-blue/95 transition-all shadow-sm cursor-pointer"
+                    >
+                      Simpan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddBranch(false);
+                        setNewBranchInput('');
+                      }}
+                      className="text-zinc-400 hover:text-zinc-650 px-1 font-bold text-xs cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                  </form>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddBranch(true)}
+                    className="text-[10px] bg-sky-500/10 border border-sky-500/20 text-[#0284C7] font-black px-3.5 py-2.5 rounded-xl hover:bg-sky-500 hover:text-white hover:border-sky-500 transition-all cursor-pointer shadow-sm shrink-0"
+                  >
+                    + Lokasi Baru
+                  </button>
+                )}
+
+                <div className="relative w-full sm:w-auto font-sans">
+                  <select 
+                    value={selectedBranchAdmin}
+                    onChange={(e) => setSelectedBranchAdmin(e.target.value)}
+                    className="bg-white border border-blue-200 text-brand-blue font-extrabold text-xs rounded-xl pl-4 pr-10 py-2.5 w-full sm:w-64 focus:outline-none focus:border-brand-blue cursor-pointer shadow-sm appearance-none"
+                  >
+                    <option value="Semua Lokasi">🌐 Kelola Semua Cabang</option>
+                    {business.branches?.map(b => (
+                      <option key={b} value={b}>📍 {b}</option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-brand-blue">
+                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
             {/* Real-time counters summary cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               {[
@@ -397,7 +482,7 @@ export default function AdminDashboard() {
                     </div>
 
                     <button 
-                      onClick={() => callNext(selectedCounter)}
+                      onClick={() => callNext(selectedCounter, selectedBranchAdmin)}
                       className="w-full py-4 bg-brand-blue hover:bg-brand-blue/95 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md shadow-brand-blue/25 flex items-center justify-center gap-2 mt-4"
                     >
                       <Play className="w-4 h-4 fill-white" />
@@ -478,7 +563,7 @@ export default function AdminDashboard() {
                             {item.status === 'waiting' && (
                               <>
                                 <button
-                                  onClick={() => callNext(selectedCounter)}
+                                  onClick={() => callNext(selectedCounter, selectedBranchAdmin)}
                                   className="px-2.5 py-1 bg-brand-blue text-white rounded font-bold text-[9px] uppercase tracking-wider"
                                 >
                                   Panggil
@@ -503,7 +588,7 @@ export default function AdminDashboard() {
                             )}
                             {item.status === 'skipped' && (
                               <button
-                                onClick={() => callNext(selectedCounter)}
+                                onClick={() => callNext(selectedCounter, selectedBranchAdmin)}
                                 className="px-2 py-0.5 bg-red-100 text-red-700 rounded font-bold text-[9px]"
                               >
                                 Panggil Ulang

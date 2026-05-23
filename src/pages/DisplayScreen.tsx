@@ -28,8 +28,11 @@ export default function DisplayScreen() {
     address: 'Jl. Sudirman No 42, Jakarta',
     phone: '0812345678',
     totalCounters: 3,
-    averageServiceTime: 12
+    averageServiceTime: 12,
+    branches: ['Cabang Senayan Utama', 'Cabang Bekasi Cyber Park', 'Cabang BSD Tangerang', 'Cabang Dago Bandung']
   };
+
+  const [tvBranch, setTvBranch] = useState('Semua Lokasi');
 
   // Clock Update
   useEffect(() => {
@@ -111,15 +114,25 @@ export default function DisplayScreen() {
 
   // Get current ticket on each counter
   const getCounterTicket = (counterNum: number) => {
-    return queue.find(q => q.status === 'calling' && q.counterNumber === counterNum);
+    return queue.find(q => 
+      q.status === 'calling' && 
+      q.counterNumber === counterNum &&
+      (tvBranch === 'Semua Lokasi' || q.branch === tvBranch)
+    );
   };
 
   // Main highlighted call
-  const activeCallingList = queue.filter(q => q.status === 'calling');
+  const activeCallingList = queue.filter(q => 
+    q.status === 'calling' &&
+    (tvBranch === 'Semua Lokasi' || q.branch === tvBranch)
+  );
   const primaryCall = activeCallingList.length > 0 ? activeCallingList[activeCallingList.length - 1] : null;
 
   // Next waiting tickets list
-  const nextWaitingList = queue.filter(q => q.status === 'waiting').slice(0, 4);
+  const nextWaitingList = queue.filter(q => 
+    q.status === 'waiting' &&
+    (tvBranch === 'Semua Lokasi' || q.branch === tvBranch)
+  ).slice(0, 4);
 
   return (
     <div className={`pt-32 pb-16 px-6 lg:px-12 bg-[#0F172A] min-h-screen text-white font-sans flex flex-col justify-between transition-all duration-300 ${isFullscreen ? 'pt-12' : ''}`}>
@@ -138,7 +151,26 @@ export default function DisplayScreen() {
 
         {/* Dynamic Digital NTP Clock & Control Buttons */}
         <div className="flex items-center gap-6">
-          <div className="hidden sm:flex items-center gap-2.5 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 text-xs font-bold text-zinc-300">
+          {/* TV Branch Location Selector Dropdown */}
+          <div className="relative font-sans hidden md:block">
+            <select
+              value={tvBranch}
+              onChange={(e) => setTvBranch(e.target.value)}
+              className="bg-slate-950 border border-slate-800 text-[#60A5FA] text-xs font-extrabold rounded-xl pl-4 pr-10 py-2.5 cursor-pointer focus:outline-none focus:border-brand-blue appearance-none transition-colors"
+            >
+              <option value="Semua Lokasi">🌐 Semua Cabang</option>
+              {business.branches?.map(b => (
+                <option key={b} value={b}>📍 {b}</option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[#60A5FA]">
+              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+              </svg>
+            </div>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-2.5 bg-slate-950 px-4 py-3 rounded-xl border border-slate-800 text-xs font-bold text-zinc-300">
             <Clock className="w-4 h-4 text-brand-blue" />
             <span className="font-mono">{liveTime || 'Memuat...'}</span>
           </div>
