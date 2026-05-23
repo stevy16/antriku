@@ -22,17 +22,30 @@ export default function DisplayScreen() {
   const [muteSound, setMuteSound] = useState(false);
   const lastCalledIdRef = useRef<string | null>(null);
 
-  const business = authState.business || {
-    name: 'Klinik Sehat Bersama',
-    category: 'Klinik & Kesehatan',
-    address: 'Jl. Sudirman No 42, Jakarta',
-    phone: '0812345678',
-    totalCounters: 3,
-    averageServiceTime: 12,
-    branches: ['Cabang Senayan Utama', 'Cabang Bekasi Cyber Park', 'Cabang BSD Tangerang', 'Cabang Dago Bandung']
+  const getDynamicBranches = () => {
+    const saved = localStorage.getItem('antriku_all_locations');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((loc: any) => loc.name);
+        }
+      } catch (e) {}
+    }
+    return ['Klinik Sehat Bersama', 'Apotek Utama Jaya', 'Barbershop Gentlemens', 'Restoran Selera Nusantara'];
   };
 
-  const [tvBranch, setTvBranch] = useState('Semua Lokasi');
+  const business = authState.business || {
+    name: 'AntriKu Monitor',
+    category: 'Layanan Publik',
+    address: 'Sistem Pemantauan Antrean Terpadu',
+    phone: '',
+    totalCounters: 3,
+    averageServiceTime: 10,
+    branches: getDynamicBranches()
+  };
+
+  const [tvBranch, setTvBranch] = useState('Klinik Sehat Bersama');
 
   // Clock Update
   useEffect(() => {

@@ -66,11 +66,11 @@ export function QueueProvider({ children }: { children: React.ReactNode }) {
     }
     // Default queue placeholders for Klinik & Kesehatan bid
     return [
-      { id: '1', ticketNumber: 'A-01', customerName: 'Ahmad Faisal', customerPhone: '0812341234', categoryPrefix: 'A', status: 'served', createdAt: '10:00', counterNumber: 1, branch: 'Cabang Senayan Utama' },
-      { id: '2', ticketNumber: 'A-02', customerName: 'Banu Tri', customerPhone: '0857233211', categoryPrefix: 'A', status: 'served', createdAt: '10:12', counterNumber: 2, branch: 'Cabang Senayan Utama' },
-      { id: '3', ticketNumber: 'B-01', customerName: 'Citra Dewi', customerPhone: '0899222444', categoryPrefix: 'B', status: 'calling', createdAt: '10:20', counterNumber: 1, branch: 'Cabang Bekasi Cyber Park' },
-      { id: '4', ticketNumber: 'A-03', customerName: 'Deni Setiawan', customerPhone: '0813987654', categoryPrefix: 'A', status: 'waiting', createdAt: '10:35', branch: 'Cabang Senayan Utama' },
-      { id: '5', ticketNumber: 'A-04', customerName: 'Eva Melati', customerPhone: '0822111199', categoryPrefix: 'A', status: 'waiting', createdAt: '10:48', branch: 'Cabang BSD Tangerang' }
+      { id: '1', ticketNumber: 'A-01', customerName: 'Ahmad Faisal', customerPhone: '0812341234', categoryPrefix: 'A', status: 'served', createdAt: '10:00', counterNumber: 1, branch: 'Klinik Sehat Bersama' },
+      { id: '2', ticketNumber: 'A-02', customerName: 'Banu Tri', customerPhone: '0857233211', categoryPrefix: 'A', status: 'served', createdAt: '10:12', counterNumber: 2, branch: 'Klinik Sehat Bersama' },
+      { id: '3', ticketNumber: 'B-01', customerName: 'Citra Dewi', customerPhone: '0899222444', categoryPrefix: 'B', status: 'calling', createdAt: '10:20', counterNumber: 1, branch: 'Apotek Utama Jaya' },
+      { id: '4', ticketNumber: 'A-03', customerName: 'Deni Setiawan', customerPhone: '0813987654', categoryPrefix: 'A', status: 'waiting', createdAt: '10:35', branch: 'Klinik Sehat Bersama' },
+      { id: '5', ticketNumber: 'A-04', customerName: 'Eva Melati', customerPhone: '0822111199', categoryPrefix: 'A', status: 'waiting', createdAt: '10:48', branch: 'Barbershop Gentlemens' }
     ];
   });
 

@@ -46,7 +46,6 @@ export default function AdminDashboard() {
   const [selectedCounter, setSelectedCounter] = useState<number>(1);
   const [activeCategory, setActiveCategory] = useState<string>('A');
   const [qrSize, setQrSize] = useState<number>(200);
-  const [selectedBranchAdmin, setSelectedBranchAdmin] = useState<string>('Semua Lokasi');
   const [showAddBranch, setShowAddBranch] = useState(false);
   const [newBranchInput, setNewBranchInput] = useState('');
 
@@ -61,15 +60,30 @@ export default function AdminDashboard() {
     }
   }, [authState]);
 
-  const business = authState.business || {
-    name: 'Klinik Sehat Bersama',
-    category: 'Klinik & Kesehatan',
-    address: 'Jl. Sudirman No 42, Jakarta',
-    phone: '0812345678',
-    totalCounters: 3,
-    averageServiceTime: 12,
-    branches: ['Cabang Senayan Utama', 'Cabang Bekasi Cyber Park', 'Cabang BSD Tangerang', 'Cabang Dago Bandung']
+  const getDynamicBranches = () => {
+    const saved = localStorage.getItem('antriku_all_locations');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((loc: any) => loc.name);
+        }
+      } catch (e) {}
+    }
+    return ['Klinik Sehat Bersama', 'Apotek Utama Jaya', 'Barbershop Gentlemens', 'Restoran Selera Nusantara'];
   };
+
+  const business = authState.business || {
+    name: 'AntriKu Admin',
+    category: 'Sistem Publik',
+    address: 'Pusat Manajemen Antrean Terpadu',
+    phone: '',
+    totalCounters: 3,
+    averageServiceTime: 10,
+    branches: getDynamicBranches()
+  };
+
+  const [selectedBranchAdmin, setSelectedBranchAdmin] = useState<string>('Klinik Sehat Bersama');
 
   // Stats Calculations (optionally filtered by selected branch)
   const waitingList = queue.filter(q => q.status === 'waiting' && (selectedBranchAdmin === 'Semua Lokasi' || q.branch === selectedBranchAdmin));
