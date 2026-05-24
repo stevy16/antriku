@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueue } from '../context/QueueContext';
 import { 
@@ -7,8 +7,6 @@ import {
   SkipForward, 
   RotateCcw, 
   Pause, 
-  QrCode, 
-  Download, 
   BarChart3, 
   Sparkles, 
   Smartphone, 
@@ -21,7 +19,9 @@ import {
   Sliders, 
   Printer, 
   Check, 
-  ExternalLink 
+  ExternalLink,
+  Send,
+  CheckCheck
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -35,55 +35,234 @@ export default function AdminDashboard() {
     servedTicket, 
     resetQueue, 
     togglePauseQueue, 
-    getQRUrl,
     addBusinessBranch
   } = useQueue();
 
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'operasional' | 'qrcode' | 'analitik' | 'integrasi'>('operasional');
+  const [activeTab, setActiveTab] = useState<'operasional' | 'analitik' | 'integrasi'>('operasional');
   
   // State for which counter the admin is simulating
   const [selectedCounter, setSelectedCounter] = useState<number>(1);
   const [activeCategory, setActiveCategory] = useState<string>('A');
-  const [qrSize, setQrSize] = useState<number>(200);
   const [showAddBranch, setShowAddBranch] = useState(false);
   const [newBranchInput, setNewBranchInput] = useState('');
-
-  // States for printing
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [copiedLink, setCopiedLink] = useState(false);
 
   // Auto redirect if not logged in
   useEffect(() => {
     if (!authState.isAuthenticated) {
-      navigate('/get-started');
+      navigate('/auth');
     }
   }, [authState]);
 
   const getDynamicBranches = () => {
-    const saved = localStorage.getItem('antriku_all_locations');
+    const saved = localStorage.getItem('antriku_user_manual_branches');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((loc: any) => loc.name);
+          return parsed;
         }
       } catch (e) {}
     }
-    return ['Klinik Sehat Bersama', 'Apotek Utama Jaya', 'Barbershop Gentlemens', 'Restoran Selera Nusantara'];
+    // Default manual starting branch
+    const initial = [authState.business?.name || 'Cabang Utama'];
+    localStorage.setItem('antriku_user_manual_branches', JSON.stringify(initial));
+    return initial;
   };
 
-  const business = authState.business || {
-    name: 'AntriKu Admin',
-    category: 'Sistem Publik',
-    address: 'Pusat Manajemen Antrean Terpadu',
-    phone: '',
-    totalCounters: 3,
-    averageServiceTime: 10,
-    branches: getDynamicBranches()
+  const [branchesList, setBranchesList] = useState<string[]>(() => {
+    return getDynamicBranches();
+  });
+
+  const handleAddNewBranchManual = (branchName: string) => {
+    if (!branchName.trim()) return;
+    const current = getDynamicBranches();
+    if (current.includes(branchName.trim())) return;
+    const updated = [...current, branchName.trim()];
+    localStorage.setItem('antriku_user_manual_branches', JSON.stringify(updated));
+    setBranchesList(updated);
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new CustomEvent('antriku_locations_changed'));
   };
 
-  const [selectedBranchAdmin, setSelectedBranchAdmin] = useState<string>('Klinik Sehat Bersama');
+  const handleRemoveBranchManual = (branchName: string) => {
+    const current = getDynamicBranches();
+    const updated = current.filter(b => b !== branchName);
+    localStorage.setItem('antriku_user_manual_branches', JSON.stringify(updated));
+    setBranchesList(updated);
+    if (selectedBranchAdmin === branchName) {
+      setSelectedBranchAdmin('Semua Lokasi');
+    }
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new CustomEvent('antriku_locations_changed'));
+  };
+
+  // Track the locations change from Storage and custom events
+  useEffect(() => {
+    const handleLocationsChange = () => {
+      setBranchesList(getDynamicBranches());
+    };
+    window.addEventListener('storage', handleLocationsChange);
+    window.addEventListener('antriku_locations_changed', handleLocationsChange);
+    return () => {
+      window.removeEventListener('storage', handleLocationsChange);
+      window.removeEventListener('antriku_locations_changed', handleLocationsChange);
+    };
+  }, []);
+
+  const business = authState.business 
+    ? { ...authState.business, branches: branchesList }
+    : {
+        name: 'AntriKu Admin',
+        category: 'Sistem Publik',
+        address: 'Pusat Manajemen Antrean Terpadu',
+        phone: '',
+        totalCounters: 3,
+        averageServiceTime: 10,
+        branches: branchesList
+      };
+
+  const [autoSyncLocation, setAutoSyncLocation] = useState<boolean>(() => {
+    const saved = localStorage.getItem('antriku_admin_auto_sync_location');
+    return saved !== 'false'; // default is true
+  });
+
+  const [latestCustomerBranch, setLatestCustomerBranch] = useState<string>(() => {
+    return localStorage.getItem('antriku_latest_customer_branch') || 'Klinik Sehat Bersama';
+  });
+
+  const [selectedBranchAdmin, setSelectedBranchAdmin] = useState<string>(() => {
+    const savedAuto = localStorage.getItem('antriku_admin_auto_sync_location');
+    const isAuto = savedAuto !== 'false';
+    const currentList = getDynamicBranches();
+    if (isAuto) {
+      return localStorage.getItem('antriku_latest_customer_branch') || currentList[0] || 'Semua Lokasi';
+    }
+    return currentList[0] || 'Semua Lokasi';
+  });
+
+  // Track latest customer branch & auto sync if enabled
+  useEffect(() => {
+    const handleStorage = () => {
+      const liveBranch = localStorage.getItem('antriku_latest_customer_branch');
+      if (liveBranch) {
+        setLatestCustomerBranch(liveBranch);
+        if (autoSyncLocation) {
+          setSelectedBranchAdmin(liveBranch);
+        }
+      }
+    };
+
+    handleStorage();
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('antriku_customer_branch_changed', handleStorage);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('antriku_customer_branch_changed', handleStorage);
+    };
+  }, [autoSyncLocation]);
+
+  // Persist autoSyncLocation toggle choice
+  useEffect(() => {
+    localStorage.setItem('antriku_admin_auto_sync_location', String(autoSyncLocation));
+  }, [autoSyncLocation]);
+
+  // WhatsApp Integration Sandbox state
+  const [selectedWaCustomer, setSelectedWaCustomer] = useState<string>('');
+  const [waCustomName, setWaCustomName] = useState<string>('');
+  const [waCustomPhone, setWaCustomPhone] = useState<string>('');
+  const [customWaMessage, setCustomWaMessage] = useState<string>('');
+  const [waSendingState, setWaSendingState] = useState<'idle' | 'sending' | 'success'>('idle');
+  const [waHistoryLogs, setWaHistoryLogs] = useState<Array<{ id: string; time: string; name: string; phone: string; message: string; ticket: string; status: string }>>(() => {
+    const saved = localStorage.getItem('antriku_wa_history_logs2');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (_) {}
+    }
+    return [
+      {
+        id: 'wa_1',
+        time: '10:15 WIB',
+        name: 'Citra Dewi',
+        phone: '0812345678',
+        message: `Halo *Citra Dewi*, nomor antrean Anda *A-02* di *${business.name}* bersiap dipanggil! Mohon bersiap menuju Loket Pelayanan.\n\nHormat kami, Tim ${business.name}`,
+        ticket: 'A-02',
+        status: 'Terkirim ✓✓'
+      },
+      {
+        id: 'wa_2',
+        time: '10:30 WIB',
+        name: 'Budi Santoso',
+        phone: '0877112233',
+        message: `Halo *Budi Santoso*, nomor antrean Anda *B-05* di *${business.name}* (${selectedBranchAdmin}) bersiap dipanggil! Mohon bersiap menuju Loket Pelayanan.\n\nSent via AntriKu.`,
+        ticket: 'B-05',
+        status: 'Terkirim ✓✓'
+      }
+    ];
+  });
+
+  // Save WhatsApp logs to localStorage
+  useEffect(() => {
+    localStorage.setItem('antriku_wa_history_logs2', JSON.stringify(waHistoryLogs));
+  }, [waHistoryLogs]);
+
+  // Handle selected customer change to auto-fill custom fields
+  useEffect(() => {
+    if (selectedWaCustomer && selectedWaCustomer !== 'custom') {
+      const selectedItem = queue.find(q => q.id === selectedWaCustomer);
+      if (selectedItem) {
+        setWaCustomName(selectedItem.customerName);
+        setWaCustomPhone(selectedItem.customerPhone || '08124294812');
+        setCustomWaMessage(`Halo *${selectedItem.customerName}*, nomor antrean Anda *${selectedItem.ticketNumber}* di *${business.name}* (${selectedItem.branch}) bersiap dipanggil! Silakan beralih menuju ruangan pelayanan atau loket penanganan.\n\nTerima kasih atas kerja sama Anda.\n\n---\n*Pemberitahuan Sistem AntriKu*`);
+      }
+    } else if (selectedWaCustomer === 'custom') {
+      // Keep input editable or empty
+    } else {
+      // default: first waiting queue customer or just general message
+      const activeWaiting = queue.filter(q => q.status === 'waiting' || q.status === 'calling');
+      if (activeWaiting.length > 0) {
+        const item = activeWaiting[0];
+        setSelectedWaCustomer(item.id);
+        setWaCustomName(item.customerName);
+        setWaCustomPhone(item.customerPhone);
+        setCustomWaMessage(`Halo *${item.customerName}*, nomor antrean Anda *${item.ticketNumber}* di *${business.name}* (${item.branch}) bersiap dipanggil! Silakan beralih menuju ruangan pelayanan atau loket penanganan.\n\nTerima kasih atas kerja sama Anda.\n\n---\n*Pemberitahuan Sistem AntriKu*`);
+      } else {
+        setWaCustomName('Nama Pengunjung');
+        setWaCustomPhone('0812345678');
+        setCustomWaMessage(`Halo *Nama Pengunjung*, nomor antrean Anda siap untuk dipanggil di *${business.name}*. Harap bersiap!\n\n---\n*Pemberitahuan Sistem AntriKu*`);
+      }
+    }
+  }, [selectedWaCustomer, queue, business.name]);
+
+  const handleSendSimulatedWa = () => {
+    if (!waCustomName.trim() || !waCustomPhone.trim() || !customWaMessage.trim()) return;
+
+    setWaSendingState('sending');
+    setTimeout(() => {
+      const now = new Date();
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')} WIB`;
+      
+      const newLog = {
+        id: 'wa_' + Math.random().toString(36).substring(2, 9),
+        time: timeStr,
+        name: waCustomName,
+        phone: waCustomPhone,
+        message: customWaMessage,
+        ticket: queue.find(q => q.id === selectedWaCustomer)?.ticketNumber || 'UM-99',
+        status: 'Terkirim ✓✓'
+      };
+
+      setWaHistoryLogs(prev => [newLog, ...prev]);
+      setWaSendingState('success');
+      
+      // Reset back to idle after a brief indicator
+      setTimeout(() => {
+        setWaSendingState('idle');
+      }, 2000);
+
+    }, 1500);
+  };
 
   // Stats Calculations (optionally filtered by selected branch)
   const waitingList = queue.filter(q => q.status === 'waiting' && (selectedBranchAdmin === 'Semua Lokasi' || q.branch === selectedBranchAdmin));
@@ -95,147 +274,6 @@ export default function AdminDashboard() {
     const item = queue.find(q => q.status === 'calling' && q.counterNumber === num && (selectedBranchAdmin === 'Semua Lokasi' || q.branch === selectedBranchAdmin));
     return item ? item.ticketNumber : '-';
   };
-
-  // Copy scan link helper
-  const handleCopyLink = () => {
-    const url = getQRUrl();
-    navigator.clipboard.writeText(url);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
-  };
-
-  // Generate downloadable flyer with canvas API
-  const handleDownloadQR = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Clear and Redraw HQ Flyer
-    canvas.width = 400;
-    canvas.height = 550;
-
-    // Draw background
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, 400, 550);
-
-    // Draw border accents
-    ctx.strokeStyle = '#2563EB'; // Brand Blue
-    ctx.lineWidth = 14;
-    ctx.strokeRect(7, 7, 386, 536);
-
-    // Header branding
-    ctx.fillStyle = '#1e1b4b'; // Dark Indigo
-    ctx.font = 'bold 22px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('PINDAI QR UNTUK ANTRIAN', 200, 50);
-
-    ctx.fillStyle = '#2563EB';
-    ctx.font = 'bold 18px Arial';
-    ctx.fillText(business.name, 200, 85);
-
-    ctx.fillStyle = '#4b5563';
-    ctx.font = 'normal 12px Arial';
-    ctx.fillText(business.category + ' | Sistem Online Berbasis Awan', 200, 110);
-
-    // Render modern simulated QR Box
-    ctx.fillStyle = '#f3f4f6';
-    ctx.fillRect(100, 150, 200, 200);
-    ctx.strokeStyle = '#e5e7eb';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(100, 150, 200, 200);
-
-    // Draw outer corner markers of QR Code representing professional standard
-    ctx.fillStyle = '#1e1b4b';
-    ctx.fillRect(115, 165, 45, 45);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(123, 173, 29, 29);
-    ctx.fillStyle = '#2563EB';
-    ctx.fillRect(129, 179, 17, 17);
-
-    // Top Right Marker
-    ctx.fillStyle = '#1e1b4b';
-    ctx.fillRect(240, 165, 45, 45);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(248, 173, 29, 29);
-    ctx.fillStyle = '#2563EB';
-    ctx.fillRect(254, 179, 17, 17);
-
-    // Bottom Left Marker
-    ctx.fillStyle = '#1e1b4b';
-    ctx.fillRect(115, 290, 45, 45);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(123, 298, 29, 29);
-    ctx.fillStyle = '#2563EB';
-    ctx.fillRect(129, 304, 17, 17);
-
-    // Fill the rest with beautiful QR random blocks representing URL payload
-    ctx.fillStyle = '#1e1b4b';
-    for (let x = 170; x < 235; x += 10) {
-      for (let y = 165; y < 330; y += 10) {
-        if (Math.random() > 0.4) {
-          ctx.fillRect(x, y, 7, 7);
-        }
-      }
-    }
-    for (let x = 115; x < 285; x += 10) {
-      for (let y = 240; y < 280; y += 10) {
-        if (Math.random() > 0.4) {
-          ctx.fillRect(x, y, 7, 7);
-        }
-      }
-    }
-
-    // Mini application icon logo inside the center of printed QR flyer
-    ctx.fillStyle = '#2563EB';
-    ctx.fillRect(182, 232, 36, 36);
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(182, 232, 36, 36);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 20px Arial';
-    ctx.fillText('A', 200, 258);
-
-    // Flyer Bottom Instructions
-    ctx.fillStyle = '#1e1b4b';
-    ctx.font = 'bold 13px Arial';
-    ctx.fillText('Tunggu Giliran dari Manapun!', 200, 390);
-
-    ctx.fillStyle = '#4b5563';
-    ctx.font = 'normal 11px Arial';
-    ctx.fillText('1. Pindai QR di atas menggunakan kamera smartphone', 200, 420);
-    ctx.fillText('2. Masukkan nama & data penerima notifikasi WhatsApp', 200, 440);
-    ctx.fillText('3. Pantau antrean secara live di mana saja', 200, 460);
-
-    // Fine print
-    ctx.fillStyle = '#9ca3af';
-    ctx.font = 'italic bold 9px Arial';
-    ctx.fillText('Didukung penuh oleh AntriKu (SaaS Indonesia)', 200, 510);
-
-    // Trigger download trigger
-    const image = canvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.download = `Flyer_QR_${business.name.replace(/\s+/g, '_')}.png`;
-    link.href = image;
-    link.click();
-  };
-
-  // Synthesize dynamic flyer on screen rendering trigger
-  useEffect(() => {
-    // Basic rendering representing static layout
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.fillStyle = '#F3F4F6';
-        ctx.fillRect(0, 0, 150, 150);
-        ctx.fillStyle = '#2563EB';
-        ctx.fillRect(15, 15, 40, 40);
-        ctx.fillRect(95, 15, 40, 40);
-        ctx.fillRect(15, 95, 40, 40);
-      }
-    }
-  }, [activeTab]);
 
   return (
     <div className="pt-32 pb-24 px-4 sm:px-6 lg:px-8 min-h-screen bg-zinc-50 font-sans">
@@ -296,7 +334,6 @@ export default function AdminDashboard() {
         <div className="flex border-b border-zinc-200 mb-8 overflow-x-auto gap-4 custom-scrollbar">
           {[
             { id: 'operasional', label: 'Operasional Harian', icon: <Sliders className="w-4 h-4" /> },
-            { id: 'qrcode', label: 'QR Code System', icon: <QrCode className="w-4 h-4" /> },
             { id: 'analitik', label: 'Analitik & Grafik', icon: <BarChart3 className="w-4 h-4" /> },
             { id: 'integrasi', label: 'Integrasi WhatsApp', icon: <MessageSquare className="w-4 h-4" /> }
           ].map(tab => (
@@ -327,7 +364,7 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <h4 className="text-xs font-black text-brand-dark uppercase tracking-wider">Fokus Operasional Kantor / Cabang</h4>
-                  <p className="text-[10px] text-zinc-500">Pilih cabang kantor tempat loket Anda berada untuk mengelola antrean di lokasi tersebut.</p>
+                  <p className="text-[10px] text-zinc-500">Pilih cabang kantor tempat loket Anda berada atau gunakan mode hubung otomatis.</p>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto font-sans justify-end md:shrink-0">
@@ -382,7 +419,13 @@ export default function AdminDashboard() {
                 <div className="relative w-full sm:w-auto font-sans">
                   <select 
                     value={selectedBranchAdmin}
-                    onChange={(e) => setSelectedBranchAdmin(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedBranchAdmin(e.target.value);
+                      // Disable autoSync if modified manually
+                      if (autoSyncLocation && e.target.value !== latestCustomerBranch) {
+                        setAutoSyncLocation(false);
+                      }
+                    }}
                     className="bg-white border border-blue-200 text-brand-blue font-extrabold text-xs rounded-xl pl-4 pr-10 py-2.5 w-full sm:w-64 focus:outline-none focus:border-brand-blue cursor-pointer shadow-sm appearance-none"
                   >
                     <option value="Semua Lokasi">🌐 Kelola Semua Cabang</option>
@@ -397,6 +440,47 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Live Autoconnect & Synchronization Status Indicator */}
+            <div className="bg-white border border-zinc-200/80 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-3 shadow-inner text-xs -mt-5">
+              <div className="flex items-center gap-2.5">
+                <span className={`relative flex h-2.5 w-2.5 mt-0.5`}>
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${autoSyncLocation ? 'bg-emerald-400' : 'bg-zinc-400'}`}></span>
+                  <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${autoSyncLocation ? 'bg-emerald-500' : 'bg-zinc-300'}`}></span>
+                </span>
+                <span className="font-extrabold text-zinc-650">
+                  {autoSyncLocation ? (
+                    <span>
+                      Tersambung Otomatis dengan Lokasi Pilihan Pelanggan: <strong className="text-brand-blue font-black">{latestCustomerBranch}</strong>
+                    </span>
+                  ) : (
+                    <span>
+                      Sinkronisasi Otomatis Nonaktif (Terakhir: <strong className="text-zinc-500">{latestCustomerBranch}</strong>)
+                    </span>
+                  )}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const targetState = !autoSyncLocation;
+                  setAutoSyncLocation(targetState);
+                  if (targetState) {
+                    const live = localStorage.getItem('antriku_latest_customer_branch');
+                    if (live) {
+                      setSelectedBranchAdmin(live);
+                    }
+                  }
+                }}
+                className={`px-3.5 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all shadow-sm cursor-pointer ${
+                  autoSyncLocation
+                    ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-600 border border-zinc-300'
+                    : 'bg-brand-blue hover:bg-brand-blue/95 text-white shadow-brand-blue/15'
+                }`}
+              >
+                {autoSyncLocation ? '🔌 Putus Sambungan' : '⚡ Sambungkan Otomatis'}
+              </button>
             </div>
             
             {/* Real-time counters summary cards */}
@@ -619,120 +703,13 @@ export default function AdminDashboard() {
                   <Smartphone className="w-5 h-5 text-zinc-400 shrink-0 mt-0.5" />
                   <div>
                     <span className="font-bold text-brand-dark block">Gunakan Multi-Layar!</span>
-                    Gunakan handphone Anda untuk memindai QR Code di tab sistem QR, lalu panggil pelanggan lewat konsol kiri ini untuk menguji live-announcement TTS di tab layar display monitor utama.
+                    Hubungkan handphone Anda atau buka halaman web ini di tab baru sebagai pengunjung. Lalu panggil pelanggan lewat konsol kiri ini untuk menguji live-announcement TTS di tab layar display monitor utama.
                   </div>
                 </div>
               </div>
 
             </div>
 
-          </div>
-        )}
-
-        {activeTab === 'qrcode' && (
-          <div className="space-y-8">
-            <div className="bg-white p-8 rounded-3xl border border-zinc-150/80 shadow-md">
-              <div className="max-w-3xl mb-8">
-                <h3 className="font-extrabold text-lg text-brand-dark mb-2">QR Code Integrasi Antrean Fisik</h3>
-                <p className="text-xs text-zinc-650 leading-relaxed">
-                  AntriKu menghasilkan QR Code yang dipersonalisasi untuk bisnis Anda. Tempatkan QR Code ini pada meja register, resepsionis, pintu kaca, atau pamflet promosi. Pelanggan cukup memindainya untuk check-in, mendapatkan nomor, dan bebas menunggu di mana saja.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                
-                {/* Left: QR code custom preferences controls */}
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-[10px] font-extrabold text-zinc-500 uppercase tracking-widest mb-1.5">Tujuan URL Ambil Antrean (QR Payload)</label>
-                    <div className="relative">
-                      <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 w-5 h-5" />
-                      <input 
-                        type="text" 
-                        readOnly
-                        value={getQRUrl()}
-                        className="w-full pl-12 pr-4 py-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-semibold text-brand-blue"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4">
-                    <button 
-                      onClick={handleCopyLink}
-                      className="px-5 py-3 bg-zinc-900 hover:bg-black text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all shadow-sm"
-                    >
-                      {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Smartphone className="w-4 h-4" />}
-                      <span>{copiedLink ? 'Link Tersalin!' : 'Salin Tautan Scan'}</span>
-                    </button>
-                    <button 
-                      onClick={handleDownloadQR}
-                      className="px-5 py-3 bg-brand-blue hover:bg-brand-blue/95 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all shadow-md shadow-brand-blue/25"
-                    >
-                      <Download className="w-4 h-4" />
-                      <span>Unduh Poster Flyer (PNG)</span>
-                    </button>
-                  </div>
-
-                  <div className="border-t border-zinc-100 pt-6">
-                    <h4 className="font-extrabold text-xs text-brand-dark uppercase tracking-widest mb-3">Panduan Penempatan QR Code</h4>
-                    <ul className="space-y-3.5 text-xs text-zinc-650 font-medium">
-                      <li className="flex gap-3 items-center">
-                        <span className="w-2 h-2 rounded-full bg-brand-blue"></span>
-                        <span>Cetak dalam ukuran minimal 10x10 cm untuk pemindaian instan berjarak 1-2 meter.</span>
-                      </li>
-                      <li className="flex gap-3 items-center">
-                        <span className="w-2 h-2 rounded-full bg-brand-blue"></span>
-                        <span>Sediakan pelindung mika akrilik bening untuk melindunginya dari kotoran atau air.</span>
-                      </li>
-                      <li className="flex gap-3 items-center">
-                        <span className="w-2 h-2 rounded-full bg-brand-blue"></span>
-                        <span>Tempatkan petunjuk manual singkat agar pengunjung lansia terbiasa memindai kode.</span>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-
-                {/* Right: Live Mock Flyer Display Sheet */}
-                <div className="flex flex-col items-center justify-center p-6 bg-zinc-100/50 rounded-2xl border border-zinc-200">
-                  <span className="text-[10px] font-extrabold text-zinc-400 uppercase tracking-widest mb-4">Preview Poster Flyer QR</span>
-                  
-                  {/* Visual flyer card */}
-                  <div className="w-[280px] bg-white border border-zinc-200 rounded-[1.8rem] p-5 shadow-xl relative text-center">
-                    <span className="text-[8px] font-black text-brand-blue uppercase tracking-widest">Digital Check-In Portal</span>
-                    <h4 className="font-extrabold text-lg text-brand-dark truncate mt-1">{business.name}</h4>
-                    <p className="text-[9px] text-zinc-500">{business.category}</p>
-
-                    {/* QR block code box */}
-                    <div className="my-6 p-4 bg-zinc-50 border border-zinc-150 rounded-xl relative inline-block mx-auto">
-                      <canvas ref={canvasRef} className="hidden" />
-                      {/* Interactive visual placeholder represented */}
-                      <div className="w-32 h-32 bg-white flex items-center justify-center relative p-1 pb-1">
-                        <div className="grid grid-cols-4 gap-1 w-full h-full opacity-90">
-                          {Array.from({ length: 16 }).map((_, i) => (
-                            <div 
-                              key={i} 
-                              className={`rounded ${
-                                (i % 3 === 0 || i === 1 || i === 9 || i === 14) 
-                                  ? 'bg-brand-dark' 
-                                  : (i % 7 === 0) ? 'bg-brand-blue' : 'bg-transparent'
-                              }`}
-                            ></div>
-                          ))}
-                        </div>
-                        <div className="absolute w-8 h-8 bg-brand-blue rounded border-2 border-white flex items-center justify-center text-white font-bold text-xs shadow-lg">A</div>
-                      </div>
-                      <span className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-brand-blue text-white font-extrabold text-[7px] uppercase tracking-wider rounded-full shadow-sm">
-                        PINDAI DI SINI
-                      </span>
-                    </div>
-
-                    <p className="text-[10px] font-bold text-brand-dark mt-2">Bebas Tunggu Tanpa Kepenatan Fisik</p>
-                    <p className="text-[8px] text-zinc-450 mt-1 max-w-[200px] mx-auto leading-tight">Pindai kode QR digital di atas untuk mengambil tiket antrean WhatsApp instan.</p>
-                  </div>
-                </div>
-
-              </div>
-            </div>
           </div>
         )}
 
@@ -851,88 +828,205 @@ export default function AdminDashboard() {
 
         {activeTab === 'integrasi' && (
           <div className="bg-white p-8 rounded-3xl border border-zinc-150/80 shadow-md">
-            <header className="mb-8 border-b border-zinc-100 pb-4">
-              <h3 className="font-extrabold text-lg text-brand-dark">Webhook WhatsApp API Sandbox</h3>
-              <p className="text-xs text-zinc-550 leading-relaxed mt-1">
-                Kami menyediakan integrasi API gateway WhatsApp resmi di Indonesia. Saat nomor antrean dipanggil, sistem Cloud AntriKu otomatis membroadcast pesan notifikasi interaktif ke WhatsApp pelanggan.
-              </p>
+            <header className="mb-8 border-b border-zinc-100 pb-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h3 className="font-extrabold text-lg text-brand-dark flex items-center gap-2">
+                  <span className="p-1 px-2.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-black">WA API</span>
+                  Integrasi Notifikasi WhatsApp Antrean
+                </h3>
+                <p className="text-xs text-zinc-550 mt-1">
+                  Kirim pemberitahuan pemanggilan, status antrean, dan pengingat lewat WhatsApp langsung ke nomor telepon yang didaftarkan pelanggan.
+                </p>
+              </div>
+              <div className="flex items-center gap-2.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-100/80 rounded-xl text-xs font-extrabold">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                WhatsApp Gateway: Terhubung Otomatis
+              </div>
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               
-              {/* Left explanation column */}
-              <div className="space-y-6">
-                <div className="bg-zinc-50 p-6 rounded-2xl border border-zinc-150">
-                  <h4 className="font-extrabold text-xs text-brand-dark uppercase tracking-widest mb-3">Struktur Broadcast Pesan Otomatis</h4>
+              {/* LEFT COLUMN: SIMULATION & DISPATCHER (7 cols) */}
+              <div className="lg:col-span-7 space-y-6">
+                <div className="bg-zinc-50/50 p-6 rounded-2xl border border-zinc-150/80 space-y-4">
+                  <h4 className="font-extrabold text-xs text-brand-dark uppercase tracking-widest flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-brand-blue" />
+                    Kirim Pesan Notifikasi Baru
+                  </h4>
+
+                  {/* Customer Select Dropdown */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-wider">
+                      Ambil Otomatis Dari Pengunjung Terdaftar
+                    </label>
+                    <select
+                      value={selectedWaCustomer}
+                      onChange={(e) => setSelectedWaCustomer(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-white border border-zinc-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-blue cursor-pointer"
+                    >
+                      <option value="">-- Hubungkan Nomor Pengunjung Aktif --</option>
+                      {queue.filter(q => q.status === 'waiting' || q.status === 'calling').map(q => (
+                        <option key={q.id} value={q.id}>
+                          [{q.ticketNumber}] {q.customerName} - {q.customerPhone || 'Tidak ada nomor'} ({q.branch})
+                        </option>
+                      ))}
+                      <option value="custom">📝 Masukkan Nomor Kustom Secara Manual</option>
+                    </select>
+                  </div>
+
+                  {/* Manual / Auto inputs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-wider">
+                        Nama Penerima
+                      </label>
+                      <input
+                        type="text"
+                        value={waCustomName}
+                        onChange={(e) => {
+                          setWaCustomName(e.target.value);
+                          if (selectedWaCustomer !== 'custom') {
+                            setSelectedWaCustomer('custom');
+                          }
+                        }}
+                        placeholder="Nama Lengkap Pelanggan..."
+                        className="w-full px-4 py-2.5 bg-white border border-zinc-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-blue"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-wider">
+                        Nomor WhatsApp (Tujuan)
+                      </label>
+                      <input
+                        type="text"
+                        value={waCustomPhone}
+                        onChange={(e) => {
+                          setWaCustomPhone(e.target.value);
+                          if (selectedWaCustomer !== 'custom') {
+                            setSelectedWaCustomer('custom');
+                          }
+                        }}
+                        placeholder="Contoh: 08123456789 atau +62..."
+                        className="w-full px-4 py-2.5 bg-white border border-zinc-200 rounded-xl text-xs font-mono focus:outline-none focus:border-brand-blue"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Draft Message */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-wider">
+                        Draft Pemberitahuan (WhatsApp Markdown)
+                      </label>
+                      <span className="text-[9px] text-zinc-400 font-bold font-mono">Simulasi Pesan Instan</span>
+                    </div>
+                    <textarea
+                      rows={4}
+                      value={customWaMessage}
+                      onChange={(e) => setCustomWaMessage(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-white border border-zinc-200 rounded-xl text-xs font-medium leading-relaxed focus:outline-none focus:border-brand-blue resize-none"
+                    />
+                  </div>
+
+                  {/* Send Button */}
+                  <button
+                    type="button"
+                    onClick={handleSendSimulatedWa}
+                    disabled={waSendingState === 'sending' || !waCustomName.trim() || !waCustomPhone.trim()}
+                    className={`w-full py-3 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                      waSendingState === 'sending'
+                        ? 'bg-zinc-100 text-zinc-400 border border-zinc-200 cursor-not-allowed'
+                        : waSendingState === 'success'
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/10'
+                    }`}
+                  >
+                    {waSendingState === 'sending' ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-zinc-300 border-t-zinc-650 rounded-full animate-spin"></span>
+                        Mengirim via Secure WhatsApp API...
+                      </>
+                    ) : waSendingState === 'success' ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        Pesan Berhasil Terkirim ke WhatsApp Tujuan!
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        Kirim Notifikasi WhatsApp Ke {waCustomName || 'Pelanggan'}
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* VISUAL PHONE MOCKUP FOR CHAT INTERFACES */}
+                <div className="bg-zinc-950 p-6 rounded-2xl text-white space-y-3 relative overflow-hidden shadow-2xl">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl rounded-full"></div>
+                  <div className="flex justify-between items-center border-b border-zinc-800 pb-2 text-[9px] font-black tracking-widest text-zinc-500 uppercase">
+                    <span>💬 PRATINJAU WHATSAPP REAL-TIME</span>
+                    <span>{waCustomPhone || '0812345678'}</span>
+                  </div>
                   
-                  {/* Whatsapp mockup bubble representing live payload */}
-                  <div className="bg-emerald-50/70 border border-emerald-100 p-4 rounded-t-2xl rounded-br-2xl text-xs space-y-2 relative max-w-sm">
-                    <div className="flex justify-between items-center border-b border-emerald-100/40 pb-1.5 text-[8px] font-black text-emerald-600 tracking-wider uppercase">
-                      <span>✓ ANTRIKU INTEGRASI REGISTERED</span>
-                      <span>10:35 AM</span>
+                  <div className="bg-zinc-900/90 border border-zinc-800 p-4 rounded-xl text-xs space-y-2 relative max-w-md">
+                    <div className="flex justify-between items-center border-b border-zinc-800/60 pb-1 text-[8px] font-bold text-emerald-400 tracking-wider">
+                      <span>✓ PANGGILAN OTOMATIS: {waCustomName || 'PELANGGAN'}</span>
+                      <span>Now</span>
                     </div>
-                    <p className="font-semibold text-[11px] text-zinc-800 leading-relaxed">
-                      Halo <span className="text-emerald-700 font-bold">*Citra Dewi*</span>, nomor antrean Anda <span className="text-emerald-700 font-bold">*B-01*</span> di *{business.name}* bersiap dipanggil! <br/><br/>
-                      Estimasi sisa waktu: *3 Menit lagi* (Sisa 1 orang di depan Anda). Mohon bersiap menuju Loket Pelayanan. <br/><br/>
-                      Terima kasih atas kerja sama Anda.
+                    <p className="font-semibold text-[11px] text-zinc-200 whitespace-pre-line leading-relaxed">
+                      {customWaMessage}
                     </p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <span className="text-[10px] font-extrabold text-zinc-400 uppercase tracking-widest block">Pengaturan Autentikasi WhatsApp Gateway</span>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[8px] font-extrabold text-zinc-400 uppercase tracking-widest mb-1">API Key Token</label>
-                        <input 
-                          type="password" 
-                          readOnly 
-                          value="•••••••••••••••••••••••••••••••••"
-                          className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-mono text-zinc-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[8px] font-extrabold text-zinc-400 uppercase tracking-widest mb-1">Device ID Gateway</label>
-                        <input 
-                          type="text" 
-                          readOnly 
-                          value="wa_device_dev_77a9"
-                          className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-mono text-zinc-500"
-                        />
-                      </div>
+                    <div className="text-right text-[8px] text-zinc-500 flex items-center justify-end gap-1 select-none">
+                      <span>Just now</span>
+                      <CheckCheck className="w-3 h-3 text-emerald-400 shrink-0" />
                     </div>
                   </div>
                 </div>
-
               </div>
 
-              {/* Right column integration checklist */}
-              <div className="space-y-6">
-                <div className="p-6 bg-brand-blue/5 border border-brand-blue/10 rounded-2xl">
-                  <h4 className="font-extrabold text-xs text-brand-dark uppercase tracking-widest mb-4">Langkah Menghubungkan WhatsApp API</h4>
-                  <div className="space-y-4">
-                    {[
-                      { step: '1', title: 'Verifikasi Nomor Bisnis WhatsApp', desc: 'Scan QR di dashboard provider web.antriku.co.id untuk mendaftarkan akun WA bisnis utama Anda.' },
-                      { step: '2', title: 'Pilih Template Broadcast', desc: 'Tentukan isi template broadcast notifikasi pemanggilan antrean digital yang ramah bagi pelanggan.' },
-                      { step: '3', title: 'Uji Coba Sandbox Berhasil', desc: 'Sistem siap membroadcast SMS dan pesan digital secara global ke seluruh nomor seluler Indonesia.' }
-                    ].map((step, idx) => (
-                      <div key={idx} className="flex gap-4 items-start">
-                        <div className="w-7 h-7 rounded-lg bg-brand-blue/10 text-brand-blue font-bold text-xs flex items-center justify-center shrink-0">
-                          {step.step}
-                        </div>
-                        <div>
-                          <h5 className="font-extrabold text-xs text-brand-dark leading-none mb-1">{step.title}</h5>
-                          <p className="text-[10px] text-zinc-550 leading-relaxed">{step.desc}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              {/* RIGHT COLUMN: HISTORI PENGIRIMAN & MONITOR (5 cols) */}
+              <div className="lg:col-span-5 space-y-6">
+                <div className="bg-white p-5 border border-zinc-150 rounded-2xl flex flex-col h-full justify-between">
+                  <div>
+                    <h4 className="font-extrabold text-xs text-brand-dark uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-emerald-500" />
+                      Log Pengiriman Terakhir
+                    </h4>
 
-                <div className="flex items-center gap-3 text-xs font-bold text-zinc-550 p-2 bg-zinc-50 rounded-xl border border-zinc-150">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></div>
-                  <span>Integrasi WhatsApp Gateway: <span className="text-emerald-600 font-extrabold">Ready & Sandbox mode</span></span>
+                    {waHistoryLogs.length === 0 ? (
+                      <div className="py-12 text-center text-zinc-400 space-y-2">
+                        <MessageSquare className="w-8 h-8 text-zinc-300 mx-auto" />
+                        <p className="text-[10px] font-bold">Belum ada riwayat pengiriman notifikasi WhatsApp.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                        {waHistoryLogs.map((log) => (
+                          <div key={log.id} className="p-3 bg-zinc-50 rounded-xl border border-zinc-150/80 hover:bg-zinc-100/50 transition-colors text-xs space-y-1.5">
+                            <div className="flex justify-between items-center">
+                              <span className="font-black text-brand-dark">{log.name}</span>
+                              <span className="text-[9px] text-zinc-405 font-semibold font-mono">{log.time}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[10px] text-zinc-500 font-mono">
+                              <span>Telp: {log.phone}</span>
+                              <span className="font-black text-emerald-600 bg-emerald-50 border border-emerald-100 rounded px-1.5 flex items-center gap-1">
+                                {log.status}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-zinc-500 italic line-clamp-2 leading-relaxed border-t border-zinc-100 pt-1">
+                              {log.message.replace(/\*/g, '')}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-150 p-4 rounded-xl mt-6">
+                    <h5 className="font-black text-[10px] text-brand-dark uppercase tracking-wider mb-1">Mekanisme Autokoneksi WhatsApp</h5>
+                    <p className="text-[10px] text-zinc-500 leading-relaxed">
+                      Sistem terhubung otomatis dengan database pendaftaran pelanggan. Begitu kasir atau operator memanggil pengunjung, detak API langsung mengirimkan payload pesan WhatsApp secara senyap tanpa Anda perlu melakukan apa pun secara manual!
+                    </p>
+                  </div>
                 </div>
               </div>
 

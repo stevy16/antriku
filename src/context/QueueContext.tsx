@@ -17,6 +17,7 @@ interface QueueContextType {
   togglePauseQueue: () => void;
   getQRUrl: () => string;
   addBusinessBranch: (branchName: string) => void;
+  removeBusinessBranch: (branchName: string) => void;
 }
 
 const QueueContext = createContext<QueueContextType | undefined>(undefined);
@@ -221,6 +222,10 @@ export function QueueProvider({ children }: { children: React.ReactNode }) {
   // 4. API Operations
   const registerBusiness = (name: string, category: string, phone: string, address: string, totalCounters: number) => {
     const businessId = 'biz_' + Math.random().toString(36).substring(2, 9);
+    
+    // Default to only the registered location name as branch so user can manage manually
+    const branchNames = [name];
+
     const newBusiness: BusinessInfo = {
       id: businessId,
       name,
@@ -230,8 +235,48 @@ export function QueueProvider({ children }: { children: React.ReactNode }) {
       totalCounters,
       averageServiceTime: 12,
       isPaused: false,
-      branches: ['Cabang Senayan Utama', 'Cabang Bekasi Cyber Park', 'Cabang BSD Tangerang', 'Cabang Dago Bandung']
+      branches: branchNames
     };
+
+    // Save custom branches to antriku_all_locations in localStorage so that clients can choose them!
+    try {
+      const saved = localStorage.getItem('antriku_all_locations');
+      let locationsList = [];
+      if (saved) {
+        try {
+          locationsList = JSON.parse(saved);
+        } catch (e) {}
+      }
+      
+      // For each branch, add it as a custom location if it doesn't exist already
+      branchNames.forEach((branchName, idx) => {
+        const alreadyExists = locationsList.some((loc: any) => loc.name === branchName);
+        if (!alreadyExists) {
+          locationsList.push({
+            id: `custom_${businessId}_${idx}`,
+            name: branchName,
+            category: category,
+            address: address,
+            phone: phone,
+            icon: 'Store',
+            badgeColor: 'bg-indigo-50 text-indigo-650 border-indigo-100',
+            bannerImg: 'bg-brand-blue',
+            isCustom: true,
+            services: [
+              { key: 'A', label: 'Layanan Utama' },
+              { key: 'B', label: 'Konsultasi / Pengaduan' },
+              { key: 'C', label: 'Pembayaran / Kasir' }
+            ]
+          });
+        }
+      });
+      localStorage.setItem('antriku_all_locations', JSON.stringify(locationsList));
+    } catch (e) {
+      console.error('Error saving new locations to local storage upon registration:', e);
+    }
+
+    // Also update the latest customer branch so the admin dashboard connects automatically right away!
+    localStorage.setItem('antriku_latest_customer_branch', name);
 
     const simulatedJWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.simulated_token_' + Math.random().toString(36).substring(2, 10);
 
@@ -247,16 +292,17 @@ export function QueueProvider({ children }: { children: React.ReactNode }) {
 
   const loginAdmin = (email: string, password: string) => {
     // In search of registered business or fallbacks
+    const activeBizName = authState.business?.name || 'Klinik Sehat Bersama';
     const fallbackBusiness: BusinessInfo = {
       id: 'biz_default',
-      name: authState.business?.name || 'Klinik Sehat Bersama',
+      name: activeBizName,
       category: authState.business?.category || 'Klinik & Kesehatan',
       address: authState.business?.address || 'Jl. Sudirman No 42, Jakarta',
       phone: authState.business?.phone || '0812345678',
       totalCounters: authState.business?.totalCounters || 3,
       averageServiceTime: 12,
       isPaused: false,
-      branches: authState.business?.branches || ['Cabang Senayan Utama', 'Cabang Bekasi Cyber Park', 'Cabang BSD Tangerang', 'Cabang Dago Bandung']
+      branches: authState.business?.branches || [activeBizName]
     };
 
     const simulatedJWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.login_token_' + Math.random().toString(36).substring(2, 10);
@@ -394,6 +440,21 @@ export function QueueProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const removeBusinessBranch = (branchName: string) => {
+    setAuthState(prev => {
+      if (!prev.business) return prev;
+      const currentBranches = prev.business.branches || [];
+      const updated = currentBranches.filter(b => b !== branchName);
+      return {
+        ...prev,
+        business: {
+          ...prev.business,
+          branches: updated
+        }
+      };
+    });
+  };
+
   return (
     <QueueContext.Provider value={{
       authState,
@@ -410,7 +471,8 @@ export function QueueProvider({ children }: { children: React.ReactNode }) {
       resetQueue,
       togglePauseQueue,
       getQRUrl,
-      addBusinessBranch
+      addBusinessBranch,
+      removeBusinessBranch
     }}>
       {children}
     </QueueContext.Provider>

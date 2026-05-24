@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Store, 
-  QrCode, 
   Phone, 
   ArrowRight, 
   Printer, 
@@ -63,13 +62,12 @@ export default function GetStarted() {
 
   const steps = [
     { num: '01', title: 'Pendaftaran Cepat', desc: 'Isi profil identitas bisnis Anda' },
-    { num: '02', title: 'Pasang Layat QR Code', desc: 'Cetak flyer & tempatkan di meja loket' },
-    { num: '03', title: 'Ecosystem Simulator', desc: 'Uji langsung sistem antrean interaktif' },
+    { num: '02', title: 'Ecosystem Simulator', desc: 'Uji langsung sistem antrean interaktif' },
   ];
 
   // Handler to register business
   const handleNextStep = () => {
-    if (activeStep < 2) {
+    if (activeStep < 1) {
       setActiveStep(activeStep + 1);
     }
   };
@@ -352,103 +350,6 @@ export default function GetStarted() {
 
             {activeStep === 1 && (
               <motion.div 
-                key="step2"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-                className="grid grid-cols-1 lg:grid-cols-2 gap-12"
-              >
-                {/* Left: QR Code Flyer Generator */}
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="text-2xl font-extrabold text-brand-dark mb-2">Langkah 2: Tempatkan QR Code di Meja Kasir / Pintu Masuk</h2>
-                    <p className="text-zinc-500 text-xs">Di bawah ini adalah poster pamflet otomatis yang siap Anda unduh dan cetak. Tempatkan poster ini pada lokasi fisik usaha agar pelanggan Anda bisa langsung memindainya untuk check-in mandiri.</p>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="p-4 bg-brand-blue/5 border border-brand-blue/10 rounded-2xl text-xs text-zinc-650 flex gap-3">
-                      <Printer className="w-5 h-5 text-brand-blue shrink-0 mt-0.5" />
-                      <div>
-                        <h4 className="font-extrabold text-brand-dark">Saran Media Cetak</h4>
-                        <p className="text-[10px] text-zinc-500 leading-relaxed mt-0.5">Sebaiknya gunakan kertas tebal berukuran A5 / A6 dengan penyangga akrilik di meja kasir Anda agar mudah dipindai oleh kamera smartphone pelanggan.</p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-4 pt-2">
-                      <button 
-                        onClick={() => {
-                          setFlyerDownloaded(true);
-                          setAlertMessage('📥 Simulasi: Mengunduh Flyer Antrean PDF resolusi siap cetak...');
-                          setTimeout(() => setAlertMessage(''), 4000);
-                        }}
-                        className="px-6 py-3 bg-brand-blue hover:bg-brand-blue/95 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all shadow-md shadow-brand-blue/15"
-                      >
-                        {flyerDownloaded ? <Check className="w-4 h-4" /> : <Download className="w-4 h-4" />}
-                        <span>{flyerDownloaded ? 'Sukses Diunduh!' : 'Unduh File Flyer Cetak (PDF)'}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right: Live Visual Flyer Preview */}
-                <div className="flex items-center justify-center">
-                  <div className="w-[300px] bg-white border-2 border-dashed border-zinc-200 rounded-[2rem] p-6 shadow-xl relative overflow-hidden flex flex-col items-center text-center">
-                    <div className="absolute top-0 left-0 right-0 h-2 bg-brand-blue"></div>
-                    
-                    {/* Flyer Header */}
-                    <p className="text-[9px] uppercase tracking-[0.2em] font-black text-brand-blue mt-2">Check-In Antrean Mandiri</p>
-                    <h3 className="text-xl font-extrabold mt-1 text-brand-dark truncate w-full px-2">{business.name}</h3>
-                    <p className="text-[9px] text-zinc-400 capitalize bg-zinc-100 rounded px-2 py-0.5 mt-1">{business.category}</p>
-
-                    {/* QR Code Graphic Box */}
-                    <div className="my-6 p-4 bg-zinc-50 border border-zinc-150 rounded-2xl relative group">
-                      <div className="w-36 h-36 bg-white flex items-center justify-center relative p-1">
-                        {/* Styled simulated QR columns/blocks */}
-                        <div className="grid grid-cols-4 gap-1 w-full h-full opacity-90">
-                          {Array.from({ length: 16 }).map((_, i) => (
-                            <div 
-                              key={i} 
-                              className={`rounded ${
-                                (i % 3 === 0 || i === 1 || i === 7 || i === 10 || i === 14) 
-                                  ? 'bg-brand-dark' 
-                                  : (i % 5 === 0) ? 'bg-brand-blue' : 'bg-transparent'
-                              }`}
-                            ></div>
-                          ))}
-                        </div>
-                        {/* Centered App Icon Overlay in QR */}
-                        <div className="absolute w-8 h-8 bg-brand-blue rounded-lg border-2 border-white flex items-center justify-center shadow-lg">
-                          <span className="text-white font-black text-xs">A</span>
-                        </div>
-                      </div>
-                      
-                      {/* Scan Badge Overlay */}
-                      <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-brand-blue text-white rounded-full font-bold text-[8px] uppercase tracking-widest leading-none shadow-md shadow-brand-blue/20">
-                        PINDAI DI SINI
-                      </span>
-                    </div>
-
-                    {/* Guidelines for Customers */}
-                    <div className="space-y-1 mt-2 text-zinc-500">
-                      <p className="text-[9px] font-bold text-brand-dark">3 Langkah Mudah Antri:</p>
-                      <p className="text-[8px]">1. Pindai kode dengan kamera Handphone Anda</p>
-                      <p className="text-[8px]">2. Masukkan nama & nomor WhatsApp</p>
-                      <p className="text-[8px]">3. Tunggu notifikasi panggilan di mana saja!</p>
-                    </div>
-
-                    {/* Mini Footer branding */}
-                    <div className="mt-6 pt-4 border-t border-zinc-100 w-full flex items-center justify-center gap-1 text-[8px] font-extrabold text-zinc-450 tracking-wider">
-                      <span>POWERED BY</span>
-                      <span className="text-brand-blue">ANTRIKU.COM</span>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {activeStep === 2 && (
-              <motion.div 
                 key="step3"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -458,7 +359,7 @@ export default function GetStarted() {
               >
                 <div>
                   <h2 className="text-2xl font-extrabold text-brand-dark mb-1">Coba Langsung Simulator Ekosistem AntriKu</h2>
-                  <p className="text-zinc-550 text-xs">Di bawah ini adalah pengujian dua sisi. Anda dapat menguji sisi staf memanggil antrean, dan sisi pelanggan memindai QR code dan mendaftar.</p>
+                  <p className="text-zinc-550 text-xs">Di bawah ini adalah pengujian dua sisi. Anda dapat menguji sisi staf memanggil antrean, dan sisi pelanggan mendaftarkan nomor antrean digital.</p>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
@@ -594,7 +495,7 @@ export default function GetStarted() {
                     </div>
 
                     <div className="pt-4 mt-6 border-t border-zinc-200 flex items-center justify-between text-[10px] text-zinc-400">
-                      <span>Metode Scan: Kamera / WA</span>
+                      <span>Metode Antrean: Web / WhatsApp</span>
                       <span className="font-bold text-brand-blue">AntriKu Cloud Ready</span>
                     </div>
                   </div>
@@ -618,7 +519,7 @@ export default function GetStarted() {
               Kembali
             </button>
 
-            {activeStep < 2 ? (
+            {activeStep < 1 ? (
               <button 
                 onClick={handleNextStep}
                 className="px-6 py-2.5 bg-brand-blue hover:bg-brand-blue/95 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-lg shadow-brand-blue/15"
@@ -638,19 +539,19 @@ export default function GetStarted() {
 
         {/* Dynamic FAQ Onboarding Tips */}
         <div className="mt-20">
-          <h3 className="text-xl font-extrabold text-brand-dark mb-8 text-center">Metode Pemasangan Lainnya di Lokasi</h3>
+          <h3 className="text-xl font-extrabold text-brand-dark mb-8 text-center">Metode Akses Antrean Pelanggan</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <div className="bg-white p-6 rounded-2xl border border-zinc-150 shadow-sm">
-              <span className="text-sm font-extrabold text-brand-blue uppercase">01 / Meja Resepsionis</span>
-              <p className="text-xs text-zinc-500 mt-2 leading-relaxed">Letakkan akrilik QR Code tepat di area depan pintu masuk atau kasir agar semua orang langsung memindainya tanpa perlu antre di meja.</p>
+              <span className="text-sm font-extrabold text-brand-blue uppercase">01 / Tautan Web Resmi</span>
+              <p className="text-xs text-zinc-500 mt-2 leading-relaxed">Pasang tautan halaman AntriKu pada profil Instagram, bio TikTok, atau situs web resmi Anda agar pengunjung bisa mendaftar dari jauh hari.</p>
             </div>
             <div className="bg-white p-6 rounded-2xl border border-zinc-150 shadow-sm">
-              <span className="text-sm font-extrabold text-brand-blue uppercase">02 / Stiker Pintu</span>
-              <p className="text-xs text-zinc-500 mt-2 leading-relaxed">Tempelkan stiker vinyl kualitas tinggi di kaca depan pintu toko. Pelanggan bahkan bisa mengambil nomor antrean sebelum toko resmi dibuka pagi hari.</p>
+              <span className="text-sm font-extrabold text-brand-blue uppercase">02 / Notifikasi WhatsApp</span>
+              <p className="text-xs text-zinc-500 mt-2 leading-relaxed">Koleksi nomor telepon pelanggan untuk mengirimkan tautan status antrean real-time mereka langsung ke ruang chat WhatsApp secara instan.</p>
             </div>
             <div className="bg-white p-6 rounded-2xl border border-zinc-150 shadow-sm">
-              <span className="text-sm font-extrabold text-brand-blue uppercase">03 / Display Monitor</span>
-              <p className="text-xs text-zinc-500 mt-2 leading-relaxed">Tampilkan QR Code pada monitor display ruang tunggu yang juga menampilkan nomor antrean teraktif saat ini dalam ukuran besar.</p>
+              <span className="text-sm font-extrabold text-brand-blue uppercase">03 / Display Monitor Publik</span>
+              <p className="text-xs text-zinc-500 mt-2 leading-relaxed">Gunakan tablet atau TV monitor di ruang tunggu utama Anda agar antrean aktif dapat terus dipantau secara transparan.</p>
             </div>
           </div>
         </div>

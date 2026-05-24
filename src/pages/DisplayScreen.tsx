@@ -35,17 +35,39 @@ export default function DisplayScreen() {
     return ['Klinik Sehat Bersama', 'Apotek Utama Jaya', 'Barbershop Gentlemens', 'Restoran Selera Nusantara'];
   };
 
-  const business = authState.business || {
-    name: 'AntriKu Monitor',
-    category: 'Layanan Publik',
-    address: 'Sistem Pemantauan Antrean Terpadu',
-    phone: '',
-    totalCounters: 3,
-    averageServiceTime: 10,
-    branches: getDynamicBranches()
-  };
+  const [branchesList, setBranchesList] = useState<string[]>(() => {
+    return getDynamicBranches();
+  });
 
-  const [tvBranch, setTvBranch] = useState('Klinik Sehat Bersama');
+  // Track the locations change from Storage and custom events
+  useEffect(() => {
+    const handleLocationsChange = () => {
+      setBranchesList(getDynamicBranches());
+    };
+    window.addEventListener('storage', handleLocationsChange);
+    window.addEventListener('antriku_locations_changed', handleLocationsChange);
+    return () => {
+      window.removeEventListener('storage', handleLocationsChange);
+      window.removeEventListener('antriku_locations_changed', handleLocationsChange);
+    };
+  }, []);
+
+  const business = authState.business 
+    ? { ...authState.business, branches: branchesList }
+    : {
+        name: 'AntriKu Monitor',
+        category: 'Layanan Publik',
+        address: 'Sistem Pemantauan Antrean Terpadu',
+        phone: '',
+        totalCounters: 3,
+        averageServiceTime: 10,
+        branches: branchesList
+      };
+
+  const [tvBranch, setTvBranch] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('location') || params.get('branch') || 'Semua Lokasi';
+  });
 
   // Clock Update
   useEffect(() => {
@@ -325,18 +347,6 @@ export default function DisplayScreen() {
               </div>
             </div>
 
-            {/* Simulated on-screen QR Code so customers can scan from waiting room screen */}
-            <div className="border-t border-slate-800 pt-5 mt-4 flex items-center gap-4 bg-slate-950/30 p-3.5 rounded-2xl">
-              <div className="w-16 h-16 bg-white p-1 rounded-xl shrink-0 flex items-center justify-center">
-                {/* Simulating QR Block inside display */}
-                <span className="text-slate-950 font-black text-lg">QR</span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-black text-brand-blue tracking-wide">Pindai dari Monitor</span>
-                <p className="text-[9px] text-zinc-400 leading-tight mt-0.5">Pindai QR ini untuk daftar antrean online mandiri lewat HP tanpa berkerumun.</p>
-              </div>
-            </div>
-
           </div>
 
         </div>
@@ -348,7 +358,7 @@ export default function DisplayScreen() {
         <div className="animate-marquee whitespace-nowrap text-xs text-zinc-300 flex items-center gap-12">
           <span>📢 Selamat datang di <span className="font-extrabold text-brand-blue">{business.name}</span>.</span>
           <span>•</span>
-          <span>Silakan ambil nomor antrean mandiri dengan memindai QR Code di meja loket resepsionis menggunakan smartphone Anda.</span>
+          <span>Silakan kunjungi portal halaman utama AntriKu untuk mengambil nomor antrean digital secara mandiri.</span>
           <span>•</span>
           <span>Mohon mendengarkan panggilan nomor antrean Anda dengan tertib. Prioritas kenyamanan dan akurasi layanan adalah komitmen utama kami.</span>
         </div>

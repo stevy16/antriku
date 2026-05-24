@@ -13,7 +13,6 @@ export default function Navbar() {
     { name: 'Beranda', path: '/' },
     { name: 'Ambil Antrean', path: '/queue' },
     { name: 'Monitor TV', path: '/display' },
-    { name: 'Langkah Setup', path: '/get-started' },
   ];
 
   const adminTarget = authState.isAuthenticated ? '/admin' : '/auth';

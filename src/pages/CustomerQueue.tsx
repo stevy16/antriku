@@ -102,6 +102,16 @@ export default function CustomerQueue() {
 
   const currentDetails = getLocationDetails();
 
+  // Save latest selected location for the admin dashboard auto-connection sync
+  useEffect(() => {
+    if (selectedLocationName) {
+      localStorage.setItem('antriku_latest_customer_branch', selectedLocationName);
+      // Dispatch storage event so same-tab or other components can detect it immediately
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('antriku_customer_branch_changed'));
+    }
+  }, [selectedLocationName]);
+
   // Local state
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [customerName, setCustomerName] = useState('');
@@ -126,9 +136,15 @@ export default function CustomerQueue() {
   useEffect(() => {
     if (activeTicket) {
       const refreshed = queue.find(q => q.id === activeTicket.id);
-      if (refreshed && JSON.stringify(refreshed) !== JSON.stringify(activeTicket)) {
-        setActiveTicket(refreshed);
-        localStorage.setItem(`active_ticket_obj_${currentDetails.name}`, JSON.stringify(refreshed));
+      if (refreshed) {
+        if (JSON.stringify(refreshed) !== JSON.stringify(activeTicket)) {
+          setActiveTicket(refreshed);
+          localStorage.setItem(`active_ticket_obj_${currentDetails.name}`, JSON.stringify(refreshed));
+        }
+      } else {
+        // Ticket has been cleared/reset from the admin side! Clear active state
+        setActiveTicket(null);
+        localStorage.removeItem(`active_ticket_obj_${currentDetails.name}`);
       }
     }
   }, [queue, activeTicket, currentDetails.name]);
@@ -449,7 +465,7 @@ export default function CustomerQueue() {
 
               {/* Action route to Monitor TV Screen */}
               <Link
-                to="/display"
+                to={`/display?location=${encodeURIComponent(selectedLocationName)}`}
                 className="w-full py-4 bg-zinc-900 text-white rounded-2xl text-xs font-extrabold uppercase tracking-widest text-center flex items-center justify-center gap-2 hover:bg-black transition-colors"
               >
                 <Tv className="w-4 h-4 text-emerald-400" />
